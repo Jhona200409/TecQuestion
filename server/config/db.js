@@ -2,11 +2,18 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGO_URI);
+        const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+        if (!uri) {
+            throw new Error('MONGO_URI is not defined in env');
+        }
+        console.log('Attempting to connect to MongoDB with URI starting with:', uri.substring(0, 20) + '...');
+        const conn = await mongoose.connect(uri);
         console.log(`MongoDB Connected: ${conn.connection.host}`);
     } catch (error) {
-        console.error(`Error: ${error.message}`);
-        process.exit(1);
+        console.error(`Error connecting to MongoDB: ${error.message}`);
+        // Do not exit process in dev to allow nodemon to restart safely if config changes
+        // process.exit(1); 
+        throw error; // Re-throw to be caught by index.js
     }
 };
 

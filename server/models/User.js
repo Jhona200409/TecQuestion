@@ -8,8 +8,13 @@ const userSchema = mongoose.Schema({
     },
     email: {
         type: String,
-        required: true,
-        unique: true
+        unique: true,
+        sparse: true // Allows multiple null values (for students)
+    },
+    controlNumber: {
+        type: String,
+        unique: true,
+        sparse: true // Allows multiple null values (for teachers)
     },
     password: {
         type: String,
