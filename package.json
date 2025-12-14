@@ -1,0 +1,28 @@
+{
+  "name": "tecquestion",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server/index.js",
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jhona200409/TecQuestion.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Jhona200409/TecQuestion/issues"
+  },
+  "homepage": "https://github.com/Jhona200409/TecQuestion#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
