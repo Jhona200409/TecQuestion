@@ -1,10 +1,10 @@
-# TecQuestion - Plataforma de Exámenes 🎓
+# TecQuestion - Plataforma de Exámenes
 
 **TecQuestion** es una aplicación web Full Stack (MERN) para la creación, gestión y aplicación de exámenes en tiempo real. Este repositorio contiene todo el código fuente necesario para desplegar el proyecto.
 
 ---
 
-## 💻 Guía de Instalación en una Nueva PC (Paso a Paso)
+##  Guía de Instalación en una Nueva PC (Paso a Paso)
 
 Si deseas descargar y ejecutar este proyecto en una computadora diferente (por ejemplo, para evaluación o desarrollo en otro equipo), sigue estas instrucciones detalladas.
 
@@ -87,22 +87,22 @@ Este comando mágico iniciará tanto el **Backend** como el **Frontend** al mism
 
 El sistema tiene dos roles principales. Usa estas credenciales para probar:
 
-#### 👨‍🏫 Rol: Profesor (Administrador)
+####  Rol: Profesor (Administrador)
 *   **Email:** `admin@tecquestion.com`
 *   **Contraseña:** `admin123`
 *   *Permisos:* Crear, Editar y Borrar Exámenes.
 
-#### 👨‍🎓 Rol: Estudiante
+####  Rol: Estudiante
 *   Para probar como estudiante, primero regístrate en la página de Login con un nuevo correo.
 *   *Nota:* Si el registro público está desactivado, el profesor deberá crear el usuario desde la base de datos (o usar el script `node seed.js` en el servidor si se requiere restaurar el admin).
 
 ---
 
-## 🛠️ Solución de Problemas
+##  Solución de Problemas
 
 *   **Error: "command not found" (git o npm):** Reinstala Node.js y Git, y asegúrate de reiniciar tu terminal.
 *   **Error de Conexión (Network Error):** Asegúrate de que el archivo `.env` en la carpeta `server` existe y tiene la `MONGO_URI` correcta.
 *   **Pantalla en Blanco:** Abre la consola del navegador (F12) para ver si hay errores de React.
 
 ---
-Hecho con 💙 por el equipo de TecQuestion.
+Hecho por el equipo de TecQuestion.
