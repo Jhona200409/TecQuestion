@@ -1,121 +1,108 @@
 # TecQuestion - Plataforma de Exámenes 🎓
 
-Bienvenido al repositorio de **TecQuestion**, una aplicación web Full Stack (MERN) diseñada para la gestión y aplicación de exámenes en línea, con roles diferenciados para Profesores y Estudiantes.
-
-## 🚀 Requisitos Previos
-
-Antes de comenzar, asegúrate de tener instalado lo siguiente en tu PC:
-
-1.  **Node.js** (Versión 18 o superior): [Descargar aquí](https://nodejs.org/)
-2.  **Git**: [Descargar aquí](https://git-scm.com/)
-3.  **MongoDB Atlas** (Cuenta y Cluster creado) o **MongoDB Local**.
+**TecQuestion** es una aplicación web Full Stack (MERN) para la creación, gestión y aplicación de exámenes en tiempo real. Este repositorio contiene todo el código fuente necesario para desplegar el proyecto.
 
 ---
 
-## 🛠️ Instalación y Configuración
+## 💻 Guía de Instalación en una Nueva PC (Paso a Paso)
 
-Sigue estos pasos para descargar y poner en marcha el proyecto:
+Si deseas descargar y ejecutar este proyecto en una computadora diferente (por ejemplo, para evaluación o desarrollo en otro equipo), sigue estas instrucciones detalladas.
 
-### 1. Clonar el repositorio
-Abre tu terminal (PowerShell, CMD o Terminal de VS Code) y ejecuta:
+### 1. Requisitos Previos (Instalar primero)
+Antes de clonar el proyecto, asegúrate de tener instalado este software:
+
+*   **Node.js (LTS):** [Descargar aquí](https://nodejs.org/) (Incluye npm).
+*   **Git Bash:** [Descargar aquí](https://git-scm.com/).
+*   **VS Code (Opcional):** Para editar el código.
+
+---
+
+### 2. Descargar (Clonar) el Proyecto
+Abre tu terminal (o Git Bash) en la carpeta donde quieras guardar el proyecto y escribe:
 
 ```bash
 git clone https://github.com/Jhona200409/TecQuestion.git
 cd TecQuestion
 ```
 
-### 2. Instalar dependencias
-El proyecto tiene dos partes: `client` (Frontend) y `server` (Backend). Debes instalar las librerías en ambas carpetas.
+---
 
-**Desde la raíz del proyecto, ejecuta:**
-```bash
-# Instala dependencias del Backend
-cd server
-npm install
+### 3. Instalar Dependencias (Librerías)
+El proyecto se divide en dos partes: Servidor (`server`) y Cliente (`client`). Necesitas instalar las "piezas" de ambas partes.
 
-# Instala dependencias del Frontend
-cd ../client
-npm install
+**Ejecuta estos comandos uno por uno en la terminal (dentro de la carpeta TecQuestion):**
 
-# Regresa a la raíz
-cd ..
-```
+1.  **Instalar librerías del Servidor:**
+    ```bash
+    cd server
+    npm install
+    ```
+
+2.  **Instalar librerías del Cliente:**
+    ```bash
+    cd ../client
+    npm install
+    ```
+
+3.  **Volver a la carpeta principal:**
+    ```bash
+    cd ..
+    ```
 
 ---
 
-## ⚙️ Configuración de Variables de Entorno
+### 4. Configurar las Claves Secretas (.env)
+Por seguridad, las contraseñas no se descargan con el código. Debes crearlas tú mismo.
 
-Necesitas configurar las claves secretas para que el sistema funcione.
-
-1.  Ve a la carpeta `server`.
-2.  Crea un archivo llamado `.env` (si no existe, puedes duplicar un ejemplo si lo hay).
-3.  Agrega el siguiente contenido dentro de `server/.env`:
+1.  Entra a la carpeta `server`.
+2.  Crea un nuevo archivo y nómbralo exactamente: `.env`
+3.  Abre el archivo `.env` con el Bloc de Notas o VS Code y pega esto:
 
 ```env
 PORT=5001
-# Reemplaza <password> con tu contraseña real de MongoDB Atlas
-MONGO_URI=mongodb+srv://admin:<TU_PASSWORD_AQUI>@cluster0.1ykf3wo.mongodb.net/?appName=Cluster0
+MONGO_URI=mongodb+srv://admin:tecquestion2025@cluster0.1ykf3wo.mongodb.net/?appName=Cluster0
 JWT_SECRET=supersecret_clave_segura_desarrollo
-STUDENT_ACCESS_CODE=TecQuestion2024
 ```
-> **Nota:** `STUDENT_ACCESS_CODE` es la clave maestra que usarán los estudiantes para registrarse si se habilita, o para validar su acceso.
+
+> **Nota:** La `MONGO_URI` anterior es una base de datos de prueba compartida. Para producción, usa tu propia cadena de conexión de MongoDB Atlas.
 
 ---
 
-## ▶️ Ejecución del Proyecto
+### 5. Iniciar la Aplicación
+¡Ya casi estás! Ahora encendemos el sistema.
 
-Para desarrollar, puedes correr ambos servidores (Frontend y Backend) simultáneamente.
+Abre una terminal en la carpeta principal `TecQuestion` y escribe:
 
-### Opción A: Usando el comando todo-en-uno (Recomendado)
-Desde la carpeta raíz `TecQuestion`:
 ```bash
 npm run dev
 ```
-Esto encenderá:
-- **Backend** en `http://localhost:5001`
-- **Frontend** en `http://localhost:5173`
 
-### Opción B: Ejecución manual
-1. **Terminal 1 (Backend):**
-   ```bash
-   cd server
-   npm run dev
-   ```
-2. **Terminal 2 (Frontend):**
-   ```bash
-   cd client
-   npm run dev
-   ```
+Este comando mágico iniciará tanto el **Backend** como el **Frontend** al mismo tiempo.
+*   Verás mensajes como "Server running on port 5001" y "VITE v4.x.x ready".
+*   El navegador se abrirá automáticamente (o puedes ir a `http://localhost:5173`).
 
 ---
 
-## 👨‍🏫 Creación de Usuario Administrador (Profesor)
+### 6. Datos de Acceso (Usuarios de Prueba)
 
-Como el registro público de estudiantes está restringido, necesitas un usuario "Profesor" inicial.
+El sistema tiene dos roles principales. Usa estas credenciales para probar:
 
-1.  Ve a la carpeta `server`.
-2.  Ejecuta el script de "semilla" (seed):
-    ```bash
-    node seed.js
-    ```
-3.  Esto creará un usuario admin con:
-    *   **Email:** `admin@tecquestion.com`
-    *   **Password:** `admin123`
+#### 👨‍🏫 Rol: Profesor (Administrador)
+*   **Email:** `admin@tecquestion.com`
+*   **Contraseña:** `admin123`
+*   *Permisos:* Crear, Editar y Borrar Exámenes.
 
-¡Listo! Ahora puedes ir a `http://localhost:5173`, iniciar sesión como Profesor y comenzar a crear exámenes.
+#### 👨‍🎓 Rol: Estudiante
+*   Para probar como estudiante, primero regístrate en la página de Login con un nuevo correo.
+*   *Nota:* Si el registro público está desactivado, el profesor deberá crear el usuario desde la base de datos (o usar el script `node seed.js` en el servidor si se requiere restaurar el admin).
 
 ---
 
-## ⚠️ Solución de Problemas Comunes
+## 🛠️ Solución de Problemas
 
-*   **Error de Conexión a MongoDB:**
-    *   Verifica que tu IP esté permitida en "Network Access" de MongoDB Atlas.
-    *   Asegúrate de que la `MONGO_URI` en el archivo `.env` sea correcta y no tenga espacios extra.
-*   **Error CORS:**
-    *   Si el navegador bloquea la conexión, asegúrate de que el Backend (`server/index.js`) tenga configurado `app.use(cors())`.
-*   **Puerto Ocupado:**
-    *   Si el puerto 5001 o 5173 está en uso, cierra las terminales de Node.js abiertas o reinicia tu PC.
+*   **Error: "command not found" (git o npm):** Reinstala Node.js y Git, y asegúrate de reiniciar tu terminal.
+*   **Error de Conexión (Network Error):** Asegúrate de que el archivo `.env` en la carpeta `server` existe y tiene la `MONGO_URI` correcta.
+*   **Pantalla en Blanco:** Abre la consola del navegador (F12) para ver si hay errores de React.
 
 ---
-
 Hecho con 💙 por el equipo de TecQuestion.
