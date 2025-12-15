@@ -35,6 +35,10 @@ const examSchema = mongoose.Schema({
         accessCode: {
             type: String // Optional: Specific access code for this exam
         },
+        timeLimitPerQuestion: {
+            type: Number,
+            default: 30
+        },
         isActive: {
             type: Boolean,
             default: true

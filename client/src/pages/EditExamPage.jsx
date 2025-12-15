@@ -1,24 +1,39 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Save, ArrowLeft, CheckCircle } from 'lucide-react';
 
-const CreateExamPage = () => {
+const EditExamPage = () => {
     const navigate = useNavigate();
+    const { id } = useParams();
+    const [loading, setLoading] = useState(true);
+
     const [title, setTitle] = useState('');
     const [timeLimit, setTimeLimit] = useState(30);
-    const [questions, setQuestions] = useState([
-        {
-            text: '',
-            type: 'multiple-choice',
-            points: 10,
-            options: [
-                { text: '', isCorrect: false },
-                { text: '', isCorrect: false }
-            ]
-        }
-    ]);
+    const [questions, setQuestions] = useState([]);
+
+    // Load Exam Data
+    useEffect(() => {
+        const fetchExam = async () => {
+            try {
+                const res = await api.get(`/exams/${id}`);
+                const exam = res.data;
+                setTitle(exam.title);
+                if (exam.settings?.timeLimitPerQuestion) {
+                    setTimeLimit(exam.settings.timeLimitPerQuestion);
+                }
+                setQuestions(exam.questions);
+            } catch (error) {
+                console.error(error);
+                toast.error('Error al cargar datos del examen');
+                navigate('/dashboard');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchExam();
+    }, [id, navigate]);
 
     const handleAddQuestion = () => {
         setQuestions([
@@ -47,12 +62,10 @@ const CreateExamPage = () => {
     const handleOptionChange = (qIndex, oIndex, field, value) => {
         const newQuestions = [...questions];
         if (field === 'isCorrect') {
-            // Ensure only one correct answer for now (or multiple depending on logic, let's stick to simple radio-like behavior for UI)
-            // Actually, let's allow multiple if needed, but for multiple-choice typically one is correct.
-            // Let's reset others if we set this one to true? Or just let user manage it.
-            // For simplicity/robustness, let's just update the value.
-            // But usually checkboxes allow multiple correct. Let's stick to the value passed.
-            newQuestions[qIndex].options[oIndex][field] = value;
+            // Uncheck others so only one is correct (Radio behavior)
+            newQuestions[qIndex].options.forEach((opt, idx) => {
+                opt.isCorrect = idx === oIndex ? value : false;
+            });
         } else {
             newQuestions[qIndex].options[oIndex][field] = value;
         }
@@ -90,7 +103,7 @@ const CreateExamPage = () => {
         return null;
     };
 
-    const handleSaveExam = async () => {
+    const handleUpdateExam = async () => {
         const error = validateExam();
         if (error) {
             toast.error(error);
@@ -98,20 +111,22 @@ const CreateExamPage = () => {
         }
 
         try {
-            await api.post('/exams', {
+            await api.put(`/exams/${id}`, {
                 title,
                 questions,
                 settings: {
                     timeLimitPerQuestion: timeLimit
                 }
             });
-            toast.success('Examen creado exitosamente');
+            toast.success('Examen actualizado exitosamente');
             navigate('/dashboard');
         } catch (err) {
             console.error(err);
-            toast.error(err.response?.data?.message || 'Error al guardar el examen');
+            toast.error(err.response?.data?.message || 'Error al actualizar el examen');
         }
     };
+
+    if (loading) return <div className="text-white text-center mt-20">Cargando...</div>;
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-6">
@@ -123,16 +138,18 @@ const CreateExamPage = () => {
                         className="flex items-center text-gray-400 hover:text-white transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5 mr-2" />
-                        Volver al Dashboard
+                        Cancelar
                     </button>
                     <button
-                        onClick={handleSaveExam}
-                        className="flex items-center bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-bold transition-colors"
+                        onClick={handleUpdateExam}
+                        className="flex items-center bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-bold transition-colors"
                     >
                         <Save className="w-5 h-5 mr-2" />
-                        Guardar Examen
+                        Actualizar Examen
                     </button>
                 </div>
+
+                <h1 className="text-2xl font-bold mb-6">Editar Examen</h1>
 
                 {/* Exam Settings */}
                 <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -143,7 +160,6 @@ const CreateExamPage = () => {
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-lg focus:outline-none focus:border-blue-500 transition-colors"
-                            placeholder="Ej. Parcial de Matemáticas - Unidad 1"
                         />
                     </div>
                     <div>
@@ -154,7 +170,6 @@ const CreateExamPage = () => {
                             onChange={(e) => setTimeLimit(parseInt(e.target.value))}
                             className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-lg focus:outline-none focus:border-blue-500 transition-colors"
                             min="5"
-                            placeholder="30"
                         />
                     </div>
                 </div>
@@ -183,7 +198,6 @@ const CreateExamPage = () => {
                                         value={q.text}
                                         onChange={(e) => handleQuestionChange(qIndex, 'text', e.target.value)}
                                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
-                                        placeholder="¿Cuál es la capital de Francia?"
                                     />
                                 </div>
                                 <div>
@@ -215,7 +229,6 @@ const CreateExamPage = () => {
                                             value={opt.text}
                                             onChange={(e) => handleOptionChange(qIndex, oIndex, 'text', e.target.value)}
                                             className={`flex-1 px-3 py-2 bg-gray-700 border rounded text-white focus:outline-none transition-colors ${opt.isCorrect ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-600 focus:border-blue-500'}`}
-                                            placeholder={`Opción ${oIndex + 1}`}
                                         />
                                         <button
                                             onClick={() => handleRemoveOption(qIndex, oIndex)}
@@ -250,4 +263,4 @@ const CreateExamPage = () => {
     );
 };
 
-export default CreateExamPage;
+export default EditExamPage;
