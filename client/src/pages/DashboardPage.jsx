@@ -76,6 +76,10 @@ const DashboardPage = () => {
 
     useEffect(() => {
         if (user) {
+            // Reset tab based on role to ensure correct view
+            if (user.role === 'student' && activeTab === 'classrooms') {
+                setActiveTab('exams');
+            }
             fetchData();
         }
     }, [user, activeTab]);
@@ -83,24 +87,31 @@ const DashboardPage = () => {
     const fetchData = async () => {
         setIsLoading(true);
         try {
+            if (!user) return; // Should adhere to protection, but safety check
+
             if (activeTab === 'exams') {
-                const res = user.role === 'teacher' ? await api.get('/exams/my-exams') : await api.get('/exams/available');
-                setExams(res.data);
+                // Determine endpoint based on reported role
+                const endpoint = user.role === 'teacher' ? '/exams/my-exams' : '/exams/available';
+                const res = await api.get(endpoint);
+                setExams(res.data || []);
             } else if (activeTab === 'classrooms' && user.role === 'teacher') {
                 const res = await api.get('/classrooms/my-classrooms');
-                if (Array.isArray(res.data)) {
-                    setClassrooms(res.data);
-                } else {
-                    setClassrooms([]);
-                    console.error('Invalid classrooms response:', res.data);
-                }
+                setClassrooms(Array.isArray(res.data) ? res.data : []);
             }
         } catch (error) {
-            console.error(error);
+            console.error("Fetch Data Error:", error);
+            // Don't leave user in the dark - maybe show empty state or error toast
         } finally {
             setIsLoading(false);
         }
     };
+
+    // Force redirect if no user (double safety)
+    useEffect(() => {
+        if (!isLoading && !user) {
+            navigate('/login');
+        }
+    }, [user, isLoading, navigate]);
 
     // --- EXAM HANDLERS ---
     const handleTakeExam = (examId) => navigate(`/take-exam/${examId}`);

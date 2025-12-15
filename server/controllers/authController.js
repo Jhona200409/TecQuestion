@@ -66,8 +66,35 @@ const loginUser = async (req, res) => {
     try {
         const { email, password, role, controlNumber, accessCode } = req.body;
 
+        console.log(`[Login] Attempt - Role: ${role}, Email: ${email}, ControlNumber: ${controlNumber}`);
+
+        // --- TEACHER LOGIN (Email + Password) - CHECK FIRST ---
+        if (role === 'teacher') {
+            if (!email || !password) {
+                return res.status(400).json({ message: 'Email y contraseña son requeridos' });
+            }
+
+            const user = await User.findOne({ email });
+
+            if (user && (await user.matchPassword(password))) {
+                console.log(`[Login] Teacher Login Success: ${user.name}`);
+                return res.json({
+                    user: {
+                        _id: user._id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role,
+                        controlNumber: user.controlNumber
+                    },
+                    token: generateToken(user._id)
+                });
+            } else {
+                return res.status(401).json({ message: 'Credenciales inválidas' });
+            }
+        }
+
         // --- STUDENT LOGIN (Matricula + Class Code) ---
-        if (role === 'student' || controlNumber) {
+        if (role === 'student') {
             console.log(`[Login] Student Attempt: ${controlNumber} with Code: ${accessCode}`);
 
             if (!controlNumber || !accessCode) {
@@ -104,34 +131,19 @@ const loginUser = async (req, res) => {
 
             // 4. Return Token
             return res.json({
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                role: 'student',
-                controlNumber: user.controlNumber,
+                user: {
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    role: 'student',
+                    controlNumber: user.controlNumber
+                },
                 token: generateToken(user._id)
             });
         }
 
-        // --- TEACHER LOGIN (Email + Password) ---
-        if (!email || !password) {
-            return res.status(400).json({ message: 'Email y contraseña son requeridos' });
-        }
-
-        const user = await User.findOne({ email });
-
-        if (user && (await user.matchPassword(password))) {
-            return res.json({
-                _id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                controlNumber: user.controlNumber,
-                token: generateToken(user._id)
-            });
-        } else {
-            return res.status(401).json({ message: 'Credenciales inválidas' });
-        }
+        // --- FALLBACK: Invalid role or missing data ---
+        return res.status(400).json({ message: 'Por favor selecciona un tipo de usuario válido e ingresa tus credenciales.' });
 
     } catch (error) {
         console.error("Error en login:", error);

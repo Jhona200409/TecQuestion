@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import api from '../api/axios';
@@ -15,7 +15,12 @@ const LoginPage = () => {
     });
 
     const navigate = useNavigate();
-    const login = useAuthStore((state) => state.login);
+    const { login, logout } = useAuthStore();
+
+    // Clear any existing session when visiting login page
+    useEffect(() => {
+        logout();
+    }, []);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
