@@ -6,7 +6,8 @@ import DashboardPage from './pages/DashboardPage';
 import CreateExamPage from './pages/CreateExamPage';
 import TakeExamPage from './pages/TakeExamPage';
 import EditExamPage from './pages/EditExamPage';
-import ProtectedRoute from './components/ProtectedRoute'; // Ensure this component assumes correct logic or use inline if simple
+import ResultsPage from './pages/ResultsPage';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
@@ -43,6 +44,13 @@ function App() {
           element={
             <ProtectedRoute>
               <TakeExamPage />
+            </ProtectedRoute>
+          } />
+        <Route
+          path="/results"
+          element={
+            <ProtectedRoute>
+              <ResultsPage />
             </ProtectedRoute>
           } />
       </Routes>

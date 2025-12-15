@@ -31,6 +31,10 @@ const examSchema = mongoose.Schema({
         ref: 'User'
     },
     questions: [questionSchema],
+    assignedClassrooms: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Classroom'
+    }],
     settings: {
         accessCode: {
             type: String // Optional: Specific access code for this exam

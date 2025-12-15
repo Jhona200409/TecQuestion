@@ -9,7 +9,10 @@ const {
     deleteExam,
     submitExam,
     startExam,
-    saveProgress
+    saveProgress,
+    assignExam,
+    getExamResults,
+    checkAnswer
 } = require('../controllers/examController');
 const { protect, teacherOnly } = require('../middleware/authMiddleware');
 
@@ -35,5 +38,14 @@ router.route('/:id/start')
 
 router.route('/:id/progress')
     .put(protect, saveProgress);
+
+router.route('/:id/assign')
+    .put(protect, teacherOnly, assignExam);
+
+router.route('/:id/check-answer')
+    .post(protect, checkAnswer);
+
+router.route('/:examId/results/:classroomId')
+    .get(protect, teacherOnly, getExamResults);
 
 module.exports = router;

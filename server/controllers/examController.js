@@ -41,18 +41,29 @@ const getMyExams = async (req, res) => {
 // @route   GET /api/exams/available
 const getAvailableExams = async (req, res) => {
     try {
-        const exams = await Exam.find({ 'settings.isActive': true })
-            .populate('creator', 'name')
-            .select('-questions.options.isCorrect')
-            .sort({ createdAt: -1 });
-
-        // If student, check attempts status for each exam
+        // If student, first find which classrooms they belong to
         if (req.user.role === 'student') {
+            const Classroom = require('../models/Classroom');
+
+            // Find classrooms where student is enrolled
+            const studentClassrooms = await Classroom.find({ students: req.user._id });
+            const classroomIds = studentClassrooms.map(c => c._id);
+
+            // Get exams assigned to those classrooms
+            const exams = await Exam.find({
+                'settings.isActive': true,
+                assignedClassrooms: { $in: classroomIds }
+            })
+                .populate('creator', 'name')
+                .select('-questions.options.isCorrect')
+                .sort({ createdAt: -1 });
+
+            // Add attempt status for each exam
             const examsWithStatus = await Promise.all(exams.map(async (exam) => {
                 const attempt = await Attempt.findOne({ student: req.user._id, exam: exam._id });
                 const examObj = exam.toObject();
                 if (attempt) {
-                    examObj.attemptStatus = attempt.status; // 'in-progress' or 'completed'
+                    examObj.attemptStatus = attempt.status;
                     examObj.score = attempt.score;
                 } else {
                     examObj.attemptStatus = 'not_started';
@@ -61,6 +72,12 @@ const getAvailableExams = async (req, res) => {
             }));
             return res.json(examsWithStatus);
         }
+
+        // For teachers, return all active exams (they see their own via my-exams)
+        const exams = await Exam.find({ 'settings.isActive': true })
+            .populate('creator', 'name')
+            .select('-questions.options.isCorrect')
+            .sort({ createdAt: -1 });
 
         res.json(exams);
     } catch (error) {
@@ -263,6 +280,123 @@ const submitExam = async (req, res) => {
     }
 };
 
+// @desc    Assign exam to classrooms
+// @route   PUT /api/exams/:id/assign
+const assignExam = async (req, res) => {
+    try {
+        const { classroomIds } = req.body;
+        const examId = req.params.id;
+
+        const exam = await Exam.findById(examId);
+        if (!exam) return res.status(404).json({ message: 'Examen no encontrado' });
+
+        // Verify ownership
+        if (exam.creator.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: 'No autorizado' });
+        }
+
+        // Update assigned classrooms
+        exam.assignedClassrooms = classroomIds || [];
+        await exam.save();
+
+        res.json({ message: 'Examen asignado correctamente', exam });
+    } catch (error) {
+        console.error("Error assigning exam:", error);
+        res.status(500).json({ message: 'Error al asignar examen' });
+    }
+};
+
+// @desc    Get exam results for a classroom
+// @route   GET /api/exams/:examId/results/:classroomId
+const getExamResults = async (req, res) => {
+    try {
+        const { examId, classroomId } = req.params;
+        const Classroom = require('../models/Classroom');
+        const User = require('../models/User');
+
+        // Get exam
+        const exam = await Exam.findById(examId);
+        if (!exam) return res.status(404).json({ message: 'Examen no encontrado' });
+
+        // Verify ownership
+        if (exam.creator.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: 'No autorizado' });
+        }
+
+        // Get classroom with students
+        const classroom = await Classroom.findById(classroomId).populate('students', 'name controlNumber');
+        if (!classroom) return res.status(404).json({ message: 'Salón no encontrado' });
+
+        // Get all attempts for this exam
+        const attempts = await Attempt.find({ exam: examId });
+
+        // Build results array
+        const results = classroom.students.map(student => {
+            const attempt = attempts.find(a => a.student.toString() === student._id.toString());
+
+            return {
+                studentId: student._id,
+                studentName: student.name,
+                controlNumber: student.controlNumber,
+                status: attempt ? attempt.status : 'not_started',
+                score: attempt ? attempt.score : 0,
+                maxScore: attempt ? attempt.maxScore : exam.questions.length * 10,
+                correctAnswers: attempt ? attempt.answers.filter(a => a.isCorrect).length : 0,
+                totalQuestions: exam.questions.length,
+                percentage: attempt && attempt.maxScore > 0
+                    ? Math.round((attempt.score / attempt.maxScore) * 100)
+                    : 0,
+                completedAt: attempt?.updatedAt || null
+            };
+        });
+
+        res.json({
+            exam: { _id: exam._id, title: exam.title },
+            classroom: { _id: classroom._id, name: classroom.name },
+            results,
+            summary: {
+                totalStudents: results.length,
+                completed: results.filter(r => r.status === 'completed').length,
+                inProgress: results.filter(r => r.status === 'in-progress').length,
+                notStarted: results.filter(r => r.status === 'not_started').length,
+                averageScore: results.filter(r => r.status === 'completed').length > 0
+                    ? Math.round(results.filter(r => r.status === 'completed').reduce((sum, r) => sum + r.percentage, 0) / results.filter(r => r.status === 'completed').length)
+                    : 0
+            }
+        });
+    } catch (error) {
+        console.error("Error fetching exam results:", error);
+        res.status(500).json({ message: 'Error al obtener resultados' });
+    }
+};
+
+// @desc    Check a single answer and return if correct + correct answer
+// @route   POST /api/exams/:id/check-answer
+const checkAnswer = async (req, res) => {
+    try {
+        const { questionId, selectedOptionText } = req.body;
+        const examId = req.params.id;
+
+        const exam = await Exam.findById(examId);
+        if (!exam) return res.status(404).json({ message: 'Examen no encontrado' });
+
+        const question = exam.questions.find(q => q._id.toString() === questionId);
+        if (!question) return res.status(404).json({ message: 'Pregunta no encontrada' });
+
+        const correctOption = question.options.find(opt => opt.isCorrect);
+        const isCorrect = correctOption && selectedOptionText === correctOption.text;
+
+        res.json({
+            isCorrect,
+            correctAnswer: correctOption?.text || null,
+            selectedAnswer: selectedOptionText
+        });
+    } catch (error) {
+        console.error("Error checking answer:", error);
+        res.status(500).json({ message: 'Error al verificar respuesta' });
+    }
+};
+
 module.exports = {
     createExam,
     getMyExams,
@@ -272,5 +406,8 @@ module.exports = {
     deleteExam,
     submitExam,
     startExam,
-    saveProgress
+    saveProgress,
+    assignExam,
+    getExamResults,
+    checkAnswer
 };

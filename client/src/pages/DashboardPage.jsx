@@ -1,6 +1,6 @@
 import useAuthStore from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Plus, FileText, CheckCircle, Clock, Trash2, Users, School, Pencil, X } from 'lucide-react';
+import { LogOut, Plus, FileText, CheckCircle, Clock, Trash2, Users, School, Pencil, X, Send, BarChart3 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
@@ -27,6 +27,11 @@ const DashboardPage = () => {
     const [editingStudent, setEditingStudent] = useState(null);
     const [editName, setEditName] = useState('');
     const [editMatricula, setEditMatricula] = useState('');
+
+    // Exam Assignment State
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [examToAssign, setExamToAssign] = useState(null);
+    const [selectedClassroomIds, setSelectedClassroomIds] = useState([]);
 
     const handleRemoveStudent = async (classId, studentId) => {
         if (!window.confirm('¿Seguro que deseas remover a este alumno del salón?')) return;
@@ -127,6 +132,44 @@ const DashboardPage = () => {
         }
     };
 
+    // Open assign modal - load classrooms if needed
+    const openAssignModal = async (exam) => {
+        setExamToAssign(exam);
+        setSelectedClassroomIds(exam.assignedClassrooms || []);
+
+        // Load classrooms if not already loaded
+        if (classrooms.length === 0) {
+            try {
+                const res = await api.get('/classrooms/my-classrooms');
+                setClassrooms(Array.isArray(res.data) ? res.data : []);
+            } catch (error) {
+                console.error('Error loading classrooms:', error);
+            }
+        }
+        setShowAssignModal(true);
+    };
+
+    const toggleClassroomSelection = (classroomId) => {
+        setSelectedClassroomIds(prev =>
+            prev.includes(classroomId)
+                ? prev.filter(id => id !== classroomId)
+                : [...prev, classroomId]
+        );
+    };
+
+    const handleAssignExam = async () => {
+        try {
+            await api.put(`/exams/${examToAssign._id}/assign`, { classroomIds: selectedClassroomIds });
+            toast.success(`Examen enviado a ${selectedClassroomIds.length} salón(es)`);
+            setShowAssignModal(false);
+            setExamToAssign(null);
+            fetchData();
+        } catch (error) {
+            console.error(error);
+            toast.error('Error al asignar examen');
+        }
+    };
+
     // --- CLASSROOM HANDLERS ---
     const handleCreateClassroom = async (e) => {
         e.preventDefault();
@@ -208,7 +251,10 @@ const DashboardPage = () => {
 
                     {/* Action Buttons */}
                     {user?.role === 'teacher' && (
-                        <div>
+                        <div className="flex gap-3">
+                            <button onClick={() => navigate('/results')} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-bold shadow-lg transition-all">
+                                <BarChart3 className="w-5 h-5" /> Resultados
+                            </button>
                             {activeTab === 'exams' ? (
                                 <button onClick={() => navigate('/create-exam')} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition-all">
                                     <Plus className="w-5 h-5" /> Nuevo Examen
@@ -228,15 +274,25 @@ const DashboardPage = () => {
                 ) : (
                     <>
                         {/* EXAMS TAB */}
-                        {activeTab === 'exams' && (
-                            exams?.length === 0 ? (
+                        {activeTab === 'exams' && (() => {
+                            // For students, filter out completed exams
+                            const displayExams = user?.role === 'student'
+                                ? exams?.filter(e => e?.attemptStatus !== 'completed')
+                                : exams;
+
+                            return displayExams?.length === 0 ? (
                                 <div className="bg-gray-800/50 border-2 border-dashed border-gray-700 rounded-xl p-12 text-center">
-                                    <FileText className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                                    <h3 className="text-xl font-medium text-gray-300">No hay exámenes</h3>
+                                    <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
+                                    <h3 className="text-xl font-medium text-gray-300">
+                                        {user?.role === 'student' ? '¡No hay exámenes pendientes!' : 'No hay exámenes'}
+                                    </h3>
+                                    {user?.role === 'student' && (
+                                        <p className="text-gray-500 mt-2">Has completado todos tus exámenes asignados. ¡Buen trabajo!</p>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {exams?.map((exam) => {
+                                    {displayExams?.map((exam) => {
                                         if (!exam) return null;
                                         return (
                                             <div key={exam._id} className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-blue-500/30 transition-all shadow-lg">
@@ -247,9 +303,24 @@ const DashboardPage = () => {
                                                 <h3 className="text-xl font-bold text-white mb-2 line-clamp-1">{exam.title}</h3>
 
                                                 {user?.role === 'teacher' ? (
-                                                    <div className="flex justify-between mt-4 pt-4 border-t border-gray-700">
-                                                        <button onClick={() => navigate(`/edit-exam/${exam._id}`)} className="text-blue-400 hover:text-white text-sm font-medium">Editar</button>
-                                                        <button onClick={() => handleDeleteExam(exam._id)} className="text-red-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                                                    <div className="mt-4 pt-4 border-t border-gray-700">
+                                                        {exam.assignedClassrooms?.length > 0 && (
+                                                            <p className="text-xs text-green-400 mb-3 flex items-center gap-1">
+                                                                <CheckCircle className="w-3 h-3" /> Enviado a {exam.assignedClassrooms.length} salón(es)
+                                                            </p>
+                                                        )}
+                                                        <div className="flex justify-between items-center">
+                                                            <div className="flex gap-2">
+                                                                <button onClick={() => navigate(`/edit-exam/${exam._id}`)} className="text-blue-400 hover:text-white text-sm font-medium">Editar</button>
+                                                                <button onClick={() => handleDeleteExam(exam._id)} className="text-red-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => openAssignModal(exam)}
+                                                                className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
+                                                            >
+                                                                <Send className="w-3 h-3" /> Enviar
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 ) : (
                                                     <div className="mt-4">
@@ -278,8 +349,8 @@ const DashboardPage = () => {
                                         )
                                     })}
                                 </div>
-                            )
-                        )}
+                            );
+                        })()}
 
                         {/* CLASSROOMS TAB */}
                         {activeTab === 'classrooms' && (
@@ -503,6 +574,65 @@ const DashboardPage = () => {
                     </div>
                 )
             }
+
+            {/* ASSIGN EXAM MODAL */}
+            {showAssignModal && examToAssign && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-gray-800 rounded-2xl p-8 max-w-md w-full border border-gray-700 shadow-2xl">
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 bg-green-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Send className="w-8 h-8 text-green-500" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-white">Enviar Examen</h2>
+                            <p className="text-gray-400 text-sm mt-1">"{examToAssign.title}"</p>
+                        </div>
+
+                        <div className="space-y-3 max-h-60 overflow-y-auto">
+                            {classrooms.length === 0 ? (
+                                <p className="text-gray-500 text-center py-4">No tienes salones creados.</p>
+                            ) : (
+                                classrooms.map(classroom => (
+                                    <label
+                                        key={classroom._id}
+                                        className={`flex items-center gap-3 p-4 rounded-lg cursor-pointer border transition-all ${selectedClassroomIds.includes(classroom._id)
+                                            ? 'bg-green-600/20 border-green-500'
+                                            : 'bg-gray-700/50 border-gray-600 hover:border-gray-500'
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedClassroomIds.includes(classroom._id)}
+                                            onChange={() => toggleClassroomSelection(classroom._id)}
+                                            className="w-5 h-5 accent-green-500"
+                                        />
+                                        <div>
+                                            <p className="text-white font-medium">{classroom.name}</p>
+                                            <p className="text-xs text-gray-400">{classroom.students?.length || 0} alumnos</p>
+                                        </div>
+                                    </label>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 mt-8">
+                            <button
+                                type="button"
+                                onClick={() => { setShowAssignModal(false); setExamToAssign(null); }}
+                                className="flex-1 py-3 text-gray-400 hover:text-white font-medium transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleAssignExam}
+                                disabled={selectedClassroomIds.length === 0}
+                                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg shadow-lg transition-all"
+                            >
+                                Enviar a {selectedClassroomIds.length} Salón(es)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };
