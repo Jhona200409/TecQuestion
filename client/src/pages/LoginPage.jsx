@@ -25,8 +25,8 @@ const LoginPage = () => {
         e.preventDefault();
         try {
             const payload = role === 'teacher'
-                ? { email: formData.email, password: formData.password }
-                : { controlNumber: formData.controlNumber, password: formData.accessCode }; // Sending accessCode as password
+                ? { email: formData.email, password: formData.password, role: 'teacher' }
+                : { controlNumber: formData.controlNumber, accessCode: formData.accessCode, role: 'student' };
 
             const res = await api.post('/auth/login', payload);
             login(res.data.user, res.data.token);
@@ -109,7 +109,7 @@ const LoginPage = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-2">Código de Acceso Maestro</label>
+                                <label className="block text-sm font-medium text-gray-400 mb-2">Código de Salón</label>
                                 <input
                                     type="password"
                                     name="accessCode"
@@ -126,8 +126,8 @@ const LoginPage = () => {
                     <button
                         type="submit"
                         className={`w-full py-3 px-4 font-bold rounded-lg transition-all duration-200 transform hover:scale-[1.02] text-white ${role === 'teacher'
-                                ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'
-                                : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800'
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'
+                            : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800'
                             }`}
                     >
                         {role === 'teacher' ? 'Iniciar Sesión' : 'Entrar al Curso'}

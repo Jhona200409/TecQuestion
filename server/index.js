@@ -20,6 +20,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/exams', examRoutes);
+app.use('/api/classrooms', require('./routes/classroomRoutes'));
 
 app.get('/', (req, res) => res.send('API Running'));
 

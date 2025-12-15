@@ -64,53 +64,75 @@ const registerUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
     try {
-        const { email, controlNumber, password, accessCode } = req.body;
+        const { email, password, role, controlNumber, accessCode } = req.body;
 
-        let user;
-        let isMatch = false;
+        // --- STUDENT LOGIN (Matricula + Class Code) ---
+        if (role === 'student' || controlNumber) {
+            console.log(`[Login] Student Attempt: ${controlNumber} with Code: ${accessCode}`);
 
-        // Try to identify user
-        if (email) {
-            console.log("Attempting login for teacher:", email);
-            // Assume Teacher
-            user = await User.findOne({ email });
-            if (!user) console.log("User not found by email");
-
-            if (user && (await user.matchPassword(password))) {
-                isMatch = true;
-                console.log("Password matched for teacher");
-            } else if (user) {
-                console.log("Password mismathed for teacher");
+            if (!controlNumber || !accessCode) {
+                return res.status(400).json({ message: 'Matrícula y Clave de Salón son requeridos' });
             }
-        } else if (controlNumber) {
-            // Assume Student
-            console.log("Attempting login for student:", controlNumber);
-            user = await User.findOne({ controlNumber });
-            const enteredCode = accessCode || password;
 
-            if (enteredCode === process.env.STUDENT_ACCESS_CODE) {
-                isMatch = true;
-            } else if (user && (await user.matchPassword(enteredCode))) {
-                isMatch = true;
+            // 1. Find Classroom
+            const Classroom = require('../models/Classroom');
+            const classroom = await Classroom.findOne({ accessCode });
+
+            if (!classroom) {
+                return res.status(404).json({ message: 'Clave de salón no encontrada.' });
             }
+
+            // 2. Find User by Control Number first
+            // Since classroom.students stores ObjectIds, we must resolve the control number to an ID first.
+            let user = await User.findOne({ controlNumber });
+
+            if (!user) {
+                // If user doesn't exist in DB, they can't be validly enrolled in our new system
+                // (Assuming addStudent logic guarantees User creation).
+                return res.status(403).json({ message: 'Tu matrícula no está registrada en el sistema. Pide a tu profesor que te registre.' });
+            }
+
+            // 3. Check if student ID is in the classroom list
+            // We cast to strings to ensure safe comparison between ObjectId objects and string representations
+            const isEnrolled = classroom.students.some(studentId => studentId.toString() === user._id.toString());
+
+            if (!isEnrolled) {
+                return res.status(403).json({ message: 'Tu matrícula no está inscrita en este salón.' });
+            }
+
+            console.log(`[Login] Student Login Success: ${user.name}`);
+
+            // 4. Return Token
+            return res.json({
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: 'student',
+                controlNumber: user.controlNumber,
+                token: generateToken(user._id)
+            });
         }
 
-        if (user && isMatch) {
-            console.log("Login successful");
-            res.json({
-                token: generateToken(user._id),
-                user: {
-                    id: user._id,
-                    role: user.role,
-                    name: user.name,
-                    email: user.email,
-                    controlNumber: user.controlNumber
-                }
+        // --- TEACHER LOGIN (Email + Password) ---
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Email y contraseña son requeridos' });
+        }
+
+        const user = await User.findOne({ email });
+
+        if (user && (await user.matchPassword(password))) {
+            return res.json({
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                controlNumber: user.controlNumber,
+                token: generateToken(user._id)
             });
         } else {
-            console.log("Login failed: Invalid credentials");
-            res.status(401).json({ message: 'Credenciales inválidas' });
+            return res.status(401).json({ message: 'Credenciales inválidas' });
         }
+
     } catch (error) {
         console.error("Error en login:", error);
         res.status(500).json({ message: error.message });

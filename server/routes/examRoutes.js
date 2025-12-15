@@ -7,7 +7,9 @@ const {
     getExamById,
     updateExam,
     deleteExam,
-    submitExam
+    submitExam,
+    startExam,
+    saveProgress
 } = require('../controllers/examController');
 const { protect, teacherOnly } = require('../middleware/authMiddleware');
 
@@ -27,5 +29,11 @@ router.route('/:id')
 
 router.route('/:id/submit')
     .post(protect, submitExam);
+
+router.route('/:id/start')
+    .post(protect, startExam);
+
+router.route('/:id/progress')
+    .put(protect, saveProgress);
 
 module.exports = router;

@@ -45,6 +45,23 @@ const getAvailableExams = async (req, res) => {
             .populate('creator', 'name')
             .select('-questions.options.isCorrect')
             .sort({ createdAt: -1 });
+
+        // If student, check attempts status for each exam
+        if (req.user.role === 'student') {
+            const examsWithStatus = await Promise.all(exams.map(async (exam) => {
+                const attempt = await Attempt.findOne({ student: req.user._id, exam: exam._id });
+                const examObj = exam.toObject();
+                if (attempt) {
+                    examObj.attemptStatus = attempt.status; // 'in-progress' or 'completed'
+                    examObj.score = attempt.score;
+                } else {
+                    examObj.attemptStatus = 'not_started';
+                }
+                return examObj;
+            }));
+            return res.json(examsWithStatus);
+        }
+
         res.json(exams);
     } catch (error) {
         console.error("Error fetching available exams:", error);
@@ -123,14 +140,83 @@ const deleteExam = async (req, res) => {
     }
 };
 
+// @desc    Start or Resume an exam
+// @route   POST /api/exams/:id/start
+const startExam = async (req, res) => {
+    try {
+        const examId = req.params.id;
+        const studentId = req.user._id;
+
+        // Check if attempt exists
+        let attempt = await Attempt.findOne({ student: studentId, exam: examId });
+
+        if (!attempt) {
+            // Create new attempt
+            const exam = await Exam.findById(examId);
+            if (!exam) return res.status(404).json({ message: 'Examen no encontrado' });
+
+            attempt = await Attempt.create({
+                student: studentId,
+                exam: examId,
+                status: 'in-progress',
+                lastQuestionIndex: 0,
+                answers: []
+            });
+        } else if (attempt.status === 'completed') {
+            return res.status(400).json({ message: 'Este examen ya ha sido completado.', completed: true });
+        }
+
+        res.json(attempt);
+    } catch (error) {
+        console.error("Error starting exam:", error);
+        res.status(500).json({ message: 'Error al iniciar el examen' });
+    }
+};
+
+// @desc    Save progress (auto-save)
+// @route   PUT /api/exams/:id/progress
+const saveProgress = async (req, res) => {
+    try {
+        const { answers, lastQuestionIndex } = req.body;
+        const examId = req.params.id;
+        const studentId = req.user._id;
+
+        const attempt = await Attempt.findOne({ student: studentId, exam: examId });
+
+        if (!attempt) return res.status(404).json({ message: 'Intento no encontrado' });
+        if (attempt.status === 'completed') return res.status(400).json({ message: 'El examen ya está finalizado' });
+
+        attempt.answers = answers;
+        attempt.lastQuestionIndex = lastQuestionIndex;
+        await attempt.save();
+
+        res.json({ message: 'Progreso guardado' });
+    } catch (error) {
+        console.error("Error saving progress:", error);
+        res.status(500).json({ message: 'Error al guardar progreso' });
+    }
+};
+
 // @desc    Submit an exam attempt
 // @route   POST /api/exams/:id/submit
 const submitExam = async (req, res) => {
     try {
         const { answers } = req.body;
-        const exam = await Exam.findById(req.params.id);
+        const examId = req.params.id;
+        const studentId = req.user._id;
 
+        const exam = await Exam.findById(examId);
         if (!exam) return res.status(404).json({ message: 'Examen no encontrado' });
+
+        // Find existing attempt to update, or create if somehow missing (failsafe)
+        let attempt = await Attempt.findOne({ student: studentId, exam: examId });
+        if (!attempt) {
+            attempt = new Attempt({ student: studentId, exam: examId });
+        }
+
+        if (attempt.status === 'completed') {
+            return res.json(attempt); // Already done, idempotent
+        }
 
         let totalScore = 0;
         let maxScore = 0;
@@ -162,15 +248,14 @@ const submitExam = async (req, res) => {
             });
         });
 
-        const attempt = await Attempt.create({
-            student: req.user._id,
-            exam: exam._id,
-            score: totalScore,
-            maxScore,
-            answers: processedAnswers
-        });
+        attempt.score = totalScore;
+        attempt.maxScore = maxScore;
+        attempt.answers = processedAnswers;
+        attempt.status = 'completed';
 
-        res.status(201).json(attempt);
+        await attempt.save();
+
+        res.status(200).json(attempt);
 
     } catch (error) {
         console.error("Error submitting exam:", error);
@@ -185,5 +270,7 @@ module.exports = {
     getExamById,
     updateExam,
     deleteExam,
-    submitExam
+    submitExam,
+    startExam,
+    saveProgress
 };

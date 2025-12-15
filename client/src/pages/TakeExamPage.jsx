@@ -14,15 +14,37 @@ const TakeExamPage = () => {
     const [answers, setAnswers] = useState([]); // [{ questionId, selectedOptionText }]
     const [timeLeft, setTimeLeft] = useState(30); // Default, will update from setup
 
-    // Fetch Exam
+    // Fetch Exam & Attempt
     useEffect(() => {
-        const fetchExam = async () => {
+        const fetchExamAndAttempt = async () => {
             try {
-                const res = await api.get(`/exams/${id}`);
-                setExam(res.data);
+                // 1. Get Exam Details first
+                const examRes = await api.get(`/exams/${id}`);
+                setExam(examRes.data);
+
+                // 2. Start/Resume Attempt
+                const attemptRes = await api.post(`/exams/${id}/start`);
+                const attempt = attemptRes.data;
+
+                if (attempt.completed) {
+                    toast.error('Este examen ya fue completado.');
+                    navigate('/dashboard');
+                    return;
+                }
+
+                // Restore state
+                if (attempt.answers && attempt.answers.length > 0) {
+                    setAnswers(attempt.answers);
+                    // If resuming, we might want to continue from lastQuestionIndex
+                    // currently lastQuestionIndex default is 0.
+                    // But if attempt.lastQuestionIndex > 0, we use it.
+                    // Or we can infer from answers.length.
+                    setCurrentQuestionIndex(attempt.lastQuestionIndex || 0);
+                }
+
                 // Set initial timer based on settings
-                if (res.data.settings?.timeLimitPerQuestion) {
-                    setTimeLeft(res.data.settings.timeLimitPerQuestion);
+                if (examRes.data.settings?.timeLimitPerQuestion) {
+                    setTimeLeft(examRes.data.settings.timeLimitPerQuestion);
                 }
                 setLoading(false);
             } catch (error) {
@@ -31,7 +53,7 @@ const TakeExamPage = () => {
                 navigate('/dashboard');
             }
         };
-        fetchExam();
+        fetchExamAndAttempt();
     }, [id, navigate]);
 
     // Timer Logic
@@ -54,33 +76,46 @@ const TakeExamPage = () => {
 
     const handleTimeUp = () => {
         // Auto-submit empty or current selection if we tracked it differently
-        // For strict rules: if time is up, they missed it.
         handleNextQuestion(null);
     };
 
-    const handleNextQuestion = (selectedOptionText) => {
+    const handleNextQuestion = async (selectedOptionText) => {
         const currentQuestion = exam.questions[currentQuestionIndex];
 
-        // Save Answer
+        // Save Answer Locally
         const newAnswer = {
             questionId: currentQuestion._id,
-            selectedOptionText: selectedOptionText // can be null if timed out
+            selectedOptionText: selectedOptionText
         };
 
-        const newAnswers = [...answers, newAnswer];
-        setAnswers(newAnswers);
+        // Remove previous answer for this question if exists (if re-answering, though typical flow is forward only)
+        // Since we move linear, we just append or replace the last one if we were handling back nav.
+        // Assuming linear forward only:
+        const updatedAnswers = [...answers, newAnswer];
+        setAnswers(updatedAnswers);
+
+        // Prepare next index
+        const nextIndex = currentQuestionIndex + 1;
+        const isFinished = nextIndex >= exam.questions.length;
+
+        // Auto-Save to Backend (Background)
+        // We catch errors silently or toast only on failure, allowing user to proceed
+        api.put(`/exams/${id}/progress`, {
+            answers: updatedAnswers,
+            lastQuestionIndex: isFinished ? currentQuestionIndex : nextIndex // stay on last if finished
+        }).catch(err => console.error("Autosave failed", err));
 
         // Move to next or Submit
-        if (currentQuestionIndex < exam.questions.length - 1) {
-            setCurrentQuestionIndex(prev => prev + 1);
-            // Reset timer for next question
+        if (!isFinished) {
+            setCurrentQuestionIndex(nextIndex);
+            // Reset timer
             if (exam.settings?.timeLimitPerQuestion) {
                 setTimeLeft(exam.settings.timeLimitPerQuestion);
             } else {
-                setTimeLeft(30); // Fallback
+                setTimeLeft(30);
             }
         } else {
-            submitExam(newAnswers);
+            submitExam(updatedAnswers);
         }
     };
 

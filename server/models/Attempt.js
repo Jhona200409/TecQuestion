@@ -13,11 +13,20 @@ const attemptSchema = mongoose.Schema({
     },
     score: {
         type: Number,
-        required: true
+        default: 0
     },
     maxScore: {
         type: Number,
-        required: true
+        default: 0
+    },
+    status: {
+        type: String,
+        enum: ['in-progress', 'completed'],
+        default: 'in-progress'
+    },
+    lastQuestionIndex: {
+        type: Number,
+        default: 0
     },
     answers: [{
         questionId: mongoose.Schema.Types.ObjectId,
