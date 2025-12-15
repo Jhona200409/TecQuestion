@@ -6,8 +6,11 @@ const connectDB = async () => {
         if (!uri) {
             throw new Error('MONGO_URI is not defined in env');
         }
-        console.log('Attempting to connect to MongoDB with URI starting with:', uri.substring(0, 20) + '...');
-        const conn = await mongoose.connect(uri);
+        console.log('Attempting to connect to MongoDB...');
+        const conn = await mongoose.connect(uri, {
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+        });
         console.log(`MongoDB Connected: ${conn.connection.host}`);
     } catch (error) {
         console.error(`Error connecting to MongoDB: ${error.message}`);

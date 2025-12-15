@@ -71,13 +71,20 @@ const loginUser = async (req, res) => {
 
         // Try to identify user
         if (email) {
+            console.log("Attempting login for teacher:", email);
             // Assume Teacher
             user = await User.findOne({ email });
+            if (!user) console.log("User not found by email");
+
             if (user && (await user.matchPassword(password))) {
                 isMatch = true;
+                console.log("Password matched for teacher");
+            } else if (user) {
+                console.log("Password mismathed for teacher");
             }
         } else if (controlNumber) {
             // Assume Student
+            console.log("Attempting login for student:", controlNumber);
             user = await User.findOne({ controlNumber });
             const enteredCode = accessCode || password;
 
@@ -89,6 +96,7 @@ const loginUser = async (req, res) => {
         }
 
         if (user && isMatch) {
+            console.log("Login successful");
             res.json({
                 token: generateToken(user._id),
                 user: {
@@ -100,10 +108,11 @@ const loginUser = async (req, res) => {
                 }
             });
         } else {
+            console.log("Login failed: Invalid credentials");
             res.status(401).json({ message: 'Credenciales inválidas' });
         }
     } catch (error) {
-        console.error("Error en login:", error.message);
+        console.error("Error en login:", error);
         res.status(500).json({ message: error.message });
     }
 };
